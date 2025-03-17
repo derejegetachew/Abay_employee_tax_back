@@ -31,8 +31,8 @@ const prod = (err, req, res, next) => {
 };
 
 module.exports = (err, req, res, next) => {
-  const env = process.env.running_environment || 'development';
-  if (env === 'development') {
+  const env = process.env.running_environment || "development";
+  if (env === "development") {
     dev(err, req, res, next);
   } else {
     prod(err, req, res, next);
