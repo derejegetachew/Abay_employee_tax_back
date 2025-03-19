@@ -1,7 +1,14 @@
 const db = require("../model/db");
 const AppError = require("../utils/appError");
 const catchasyncHandler = require("../utils/catchAsync");
-const { calculateTax, calculateTotalIncome } = require("../utils/calculat-Tax");
+const {
+  calculateTax,
+  calculateTotalIncome,
+  calculateTotalPension,
+  calculateEmployerContribution,
+  calculateEmployeeContribution,
+  calculateCostSharing,
+} = require("../utils/calculat-Tax");
 const people = db.people;
 const Branch = db.branches;
 const user = db.users;
@@ -196,15 +203,22 @@ exports.getEmpTaxStatusByBranchMonth = catchasyncHandler(async (req, res) => {
       employee.benefit
     );
     const totalTax = calculateTax(totalSum);
-    const pension = calculatePension(employee.salary);
-    const costSharing = calculateCostSharing(employee.salary);
-    const netPay = totalSum - totalTax - pension - costSharing;
+    const employeepension = calculateEmployeeContribution(employee.salary);
+    const employeerpension = calculateEmployerContribution(employee.salary);
+    const totalPension = calculateTotalPension(employee.salary);
+    const costSharing = calculateCostSharing(
+      employee.salary,
+      employee.cost_sharing
+    );
+    const netPay = totalSum - totalTax - totalPension;
 
     return {
       ...employee.toJSON(),
       totalSum: totalSum,
       totalTax: totalTax,
-      pension: pension,
+      employeepension: employeepension,
+      employeerpension: employeerpension,
+      totalPension: totalPension,
       costSharing: costSharing,
       netPay: netPay,
     };
@@ -239,13 +253,12 @@ exports.TaxRecord = catchasyncHandler(async (req, res) => {
     branch: req.body.branch,
     salary: req.body.salary,
     transport: req.body.transport,
-    Cost_Sharing: req.body.Cost_Sharing,
+    cost_sharing: req.body.cost_sharing,
     status: req.body.status || "Draft",
     draftby: req.body.draftby,
   };
   const data = await tax.create(newemptax);
-  res.send(data);
-  console.log("Inserted Tax Record:", data.toJSON());
+  return res.send(data);
 });
 
 exports.BulkTaxRecord = catchasyncHandler(async (req, res) => {
@@ -260,8 +273,8 @@ exports.BulkTaxRecord = catchasyncHandler(async (req, res) => {
     branch: record.branch,
     salary: record.salary,
     transport: record.transport,
-    Cost_Sharing: record.Cost_Sharing,
     gas_price: record.gas_price,
+    cost_sharing: record.cost_sharing,
     step_id: record.step_id,
     grade_id: record.grade_id,
     status: record.status || "Draft",

@@ -15,8 +15,8 @@ module.exports = (sequelize, Sequelize) => {
     transport: {
       type: Sequelize.DOUBLE,
     },
-    Cost_Sharing: {
-      type: Sequelize.DOUBLE,
+    cost_sharing: {
+      type: Sequelize.STRING,
     },
     house: {
       type: Sequelize.DOUBLE,

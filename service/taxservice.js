@@ -4,7 +4,9 @@ const EmployeeService = require("./employee-service");
 const {
   calculateTax,
   calculateTotalIncome,
-  calculatePensionContribution,
+  calculateTotalPension,
+  calculateEmployerContribution,
+  calculateEmployeeContribution,
   calculateCostSharing,
 } = require("../utils/calculat-Tax");
 
@@ -21,10 +23,7 @@ class TaxService {
     try {
       const branchIds = await tax.findAll({
         attributes: ["branch"],
-        where: {
-          month: month,
-          status: "Submitted",
-        },
+        where: { month: month, status: "Submitted" },
         group: ["branch"],
       });
 
@@ -49,54 +48,21 @@ class TaxService {
 
   async getBranchDataById(id) {
     try {
-      const data = await get_branch.findByPk(id, {
+      return await get_branch.findByPk(id, {
         attributes: { exclude: ["createdAt", "updatedAt"] },
       });
-      return data;
     } catch (error) {
-      throw new AppError("Error occurred while fetching branches.", 500);
+      throw new AppError("Error occurred while fetching branch data.", 500);
     }
   }
 
   async getTaxInfoPermonth(month) {
     try {
       const taxPay = await tax.findAll({
-        where: {
-          month: month,
-          status: "Submitted",
-        },
+        where: { month: month, status: "Submitted" },
       });
 
-      const taxPayWithSum = taxPay.map((taxRecord) => {
-        const totalSum = calculateTotalIncome(
-          taxRecord.salary,
-          taxRecord.house,
-          taxRecord.transport,
-          taxRecord.benefit
-        );
-        const totalTax = calculateTax(totalSum);
-        const pension = calculatePensionContribution(taxRecord.salary);
-        const costSharing = calculateCostSharing(
-          taxRecord.salary,
-          taxRecord.isCostSharingRequired
-        );
-
-        // Net pay calculation: deduct tax, employee pension, and cost-sharing from total sum
-        const netPay = totalSum - totalTax - pension.employee - costSharing;
-
-        return {
-          ...taxRecord.toJSON(),
-          totalSum: totalSum,
-          totalTax: totalTax,
-          pensionEmployee: pension.employee,
-          pensionEmployer: pension.employer,
-          totalPension: pension.total,
-          costSharing: costSharing,
-          netPay: netPay,
-        };
-      });
-
-      return taxPayWithSum;
+      return taxPay.map((taxRecord) => this.calculateTaxDetails(taxRecord));
     } catch (error) {
       throw new AppError("Error occurred while fetching tax information.", 500);
     }
@@ -104,64 +70,57 @@ class TaxService {
 
   async getTaxInfoByBranchPermonth(month, branch = null) {
     try {
-      const whereCondition = {
-        month: month,
-        status: "Submitted",
-      };
+      const whereCondition = { month: month, status: "Submitted" };
+      if (branch) whereCondition.branch = branch;
 
-      if (branch) {
-        whereCondition.branch = branch;
-      }
+      const taxPay = await tax.findAll({ where: whereCondition });
 
-      const taxPay = await tax.findAll({
-        where: whereCondition,
-      });
-
-      const taxPayWithSum = taxPay.map((taxRecord) => {
-        const totalSum = calculateTotalIncome(
-          taxRecord.salary,
-          taxRecord.house,
-          taxRecord.transport,
-          taxRecord.benefit
-        );
-        const totalTax = calculateTax(totalSum);
-        const pension = calculatePensionContribution(taxRecord.salary);
-        const costSharing = calculateCostSharing(
-          taxRecord.salary,
-          taxRecord.isCostSharingRequired
-        );
-
-        // Net pay calculation
-        const netPay = totalSum - totalTax - pension.employee - costSharing;
-
-        return {
-          ...taxRecord.toJSON(),
-          totalSum: totalSum,
-          totalTax: totalTax,
-          pensionEmployee: pension.employee,
-          pensionEmployer: pension.employer,
-          totalPension: pension.total,
-          costSharing: costSharing,
-          netPay: netPay,
-        };
-      });
-
-      return taxPayWithSum;
+      return taxPay.map((taxRecord) => this.calculateTaxDetails(taxRecord));
     } catch (error) {
       throw new AppError("Error occurred while fetching tax information.", 500);
     }
+  }
+
+  calculateTaxDetails(taxRecord) {
+    const totalSum = calculateTotalIncome(
+      taxRecord.salary,
+      taxRecord.house,
+      taxRecord.transport,
+      taxRecord.benefit
+    );
+    const totalTax = calculateTax(totalSum);
+    const netPay = totalSum - totalTax;
+    const employeeContribution = calculateEmployeeContribution(
+      taxRecord.salary
+    );
+    const employerContribution = calculateEmployerContribution(
+      taxRecord.salary
+    );
+    const totalPension = calculateTotalPension(taxRecord.salary);
+    const costSharing = calculateCostSharing(
+      taxRecord.salary,
+      taxRecord.cost_sharing
+    );
+
+    return {
+      ...taxRecord.toJSON(),
+      totalSum,
+      totalTax,
+      netPay,
+      employeeContribution,
+      employerContribution,
+      totalPension,
+      costSharing,
+    };
   }
 
   async gasPrice() {
     try {
       const data = await gas_price.findOne({
         attributes: { exclude: ["createdAt", "updatedAt"] },
-        where: {
-          status: true,
-        },
+        where: { status: true },
         order: [["createdAt", "DESC"]],
       });
-
       return data ? data.price : 0;
     } catch (error) {
       return 0;

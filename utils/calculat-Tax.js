@@ -51,26 +51,36 @@ const calculateTotalIncome = (salary, house, transport, benefit) => {
   const total = adjustedTransport + salary + house + benefit;
   return Math.max(total, 0);
 };
-const calculatePensionContribution = (salary) => {
-  const employeeContribution = salary * 0.07;
-  const employerContribution = salary * 0.11;
-  const totalPension = employeeContribution + employerContribution;
-  return {
-    employee: employeeContribution.toFixed(2),
-    employer: employerContribution.toFixed(2),
-    total: totalPension.toFixed(2),
-  };
+const calculateEmployeeContribution = (salary) => {
+  return (salary * 0.07).toFixed(2);
 };
-const calculateCostSharing = (salary, isCostSharingRequired) => {
-  if (!isCostSharingRequired) {
-    return "0.00";
+
+// Calculate Employer Contribution (11% of salary)
+const calculateEmployerContribution = (salary) => {
+  return (salary * 0.11).toFixed(2);
+};
+
+// Calculate Total Pension Contribution (Employee + Employer)
+const calculateTotalPension = (salary) => {
+  const employeeContribution = parseFloat(
+    calculateEmployeeContribution(salary)
+  );
+  const employerContribution = parseFloat(
+    calculateEmployerContribution(salary)
+  );
+  return (employeeContribution + employerContribution).toFixed(2);
+};
+const calculateCostSharing = (salary, cost_sharing) => {
+  if (cost_sharing !== "yes") {
+    return null; // Returning null to exclude it from display
   }
-  const costSharing = salary * 0.1;
-  return costSharing.toFixed(2);
+  return (salary * 0.1).toFixed(2);
 };
 module.exports = {
   calculateTax,
   calculateTotalIncome,
-  calculatePensionContribution,
+  calculateTotalPension,
+  calculateEmployerContribution,
+  calculateEmployeeContribution,
   calculateCostSharing,
 };
